@@ -180,28 +180,68 @@ function shouldFailCi({ usage, missing, upgradeRisk, abandonment, security }, op
     ? ciConfig.failOn
     : null;
 
+  const thresholds = opt.thresholds && typeof opt.thresholds === 'object'
+    ? opt.thresholds
+    : {};
+
   const unusedCount = usage
     ? usage.unused.length + usage.devUnused.length
     : 0;
   const missingCount = missing ? missing.missing.length : 0;
-  const upgradeCount = upgradeRisk ? upgradeRisk.length : 0;
-  const abandonmentCount = abandonment ? abandonment.length : 0;
+  const highRiskUpgradeCount = upgradeRisk
+    ? upgradeRisk.filter((u) => u && (u.riskLevel === 'major' || u.riskLevel === 'breaking'))
+        .length
+    : 0;
+  const abandonmentThreshold =
+    opt.analyzers &&
+    opt.analyzers.abandonment &&
+    typeof opt.analyzers.abandonment.riskThreshold === 'number'
+      ? opt.analyzers.abandonment.riskThreshold
+      : 60;
+  const highRiskAbandonmentCount = abandonment
+    ? abandonment.filter((r) => r && typeof r.riskScore === 'number' && r.riskScore >= abandonmentThreshold)
+        .length
+    : 0;
   const securityCount = security ? security.length : 0;
   const criticalCount = security
     ? security.filter((issue) => issue.severity === 'critical').length
     : 0;
 
+  const allowedUnused =
+    typeof thresholds.maxUnused === 'number' ? thresholds.maxUnused : 0;
+  const allowedMissing =
+    typeof thresholds.maxMissing === 'number' ? thresholds.maxMissing : 0;
+  const allowedHighRiskUpgrades =
+    typeof thresholds.maxHighRiskUpgrades === 'number'
+      ? thresholds.maxHighRiskUpgrades
+      : 0;
+  const allowedAbandoned =
+    typeof thresholds.maxAbandoned === 'number' ? thresholds.maxAbandoned : 0;
+  const allowedSecurity =
+    typeof thresholds.maxSecurity === 'number' ? thresholds.maxSecurity : 0;
+  const allowedCriticalSecurity =
+    typeof thresholds.maxCriticalSecurity === 'number'
+      ? thresholds.maxCriticalSecurity
+      : 0;
+
   if (!failOn) {
-    return unusedCount + missingCount + upgradeCount + abandonmentCount + securityCount > 0;
+    return (
+      unusedCount > allowedUnused ||
+      missingCount > allowedMissing ||
+      highRiskUpgradeCount > allowedHighRiskUpgrades ||
+      highRiskAbandonmentCount > allowedAbandoned ||
+      securityCount > allowedSecurity ||
+      criticalCount > allowedCriticalSecurity
+    );
   }
 
   const failOnSet = new Set(failOn);
-  if (failOnSet.has('unused') && unusedCount > 0) return true;
-  if (failOnSet.has('missing') && missingCount > 0) return true;
-  if (failOnSet.has('upgrade') && upgradeCount > 0) return true;
-  if (failOnSet.has('abandoned') && abandonmentCount > 0) return true;
-  if (failOnSet.has('security') && securityCount > 0) return true;
-  if (failOnSet.has('critical-security') && criticalCount > 0) return true;
+  if (failOnSet.has('unused') && unusedCount > allowedUnused) return true;
+  if (failOnSet.has('missing') && missingCount > allowedMissing) return true;
+  if (failOnSet.has('upgrade') && highRiskUpgradeCount > allowedHighRiskUpgrades) return true;
+  if (failOnSet.has('abandoned') && highRiskAbandonmentCount > allowedAbandoned) return true;
+  if (failOnSet.has('security') && securityCount > allowedSecurity) return true;
+  if (failOnSet.has('critical-security') && criticalCount > allowedCriticalSecurity) return true;
 
   return false;
 }
@@ -230,6 +270,7 @@ export default async function scan(args, log, error, exit) {
       ignoreMatches,
       ignoreDirs: opt.ignoreDirs || [],
       ignorePatterns,
+      analyzers: opt.analyzers,
       parsers: getParsers(opt.parsers),
       detectors: getDetectors(opt.detectors),
       specials: getSpecials(opt.specials),

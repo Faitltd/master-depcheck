@@ -204,6 +204,21 @@ describe('dependency health command line', () => {
       exitCode.should.equal(0);
     }));
 
+  it('should honor thresholds for ci mode', () =>
+    testCli(
+      makeArgv('ci_threshold_unused', {
+        config: path.resolve(
+          'test/fake_modules',
+          'ci_threshold_unused',
+          '.dephealrc.json',
+        ),
+        argv: ['--ci'],
+      }),
+    ).then(({ error, exitCode }) => {
+      error.should.be.empty();
+      exitCode.should.equal(0);
+    }));
+
   it('should recognize JSX file even only pass jsx parser and require detector', () =>
     testCli(
       makeArgv('jsx', {

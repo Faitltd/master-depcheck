@@ -1,0 +1,8 @@
+{
+  "name": "ci-threshold-unused",
+  "version": "0.0.0",
+  "dependencies": {
+    "unused-dep": "1.0.0"
+  }
+}
+
