@@ -7,14 +7,15 @@ function getDefaultRegistryUrl() {
   return (fromEnv || 'https://registry.npmjs.org').replace(/\/+$/, '');
 }
 
-function httpsGetJson(url, timeoutMs) {
+function httpsGetJson(url, { timeoutMs, headers } = {}) {
   return new Promise((resolve, reject) => {
     const req = https.get(
       url,
       {
         headers: {
-          Accept: 'application/vnd.npm.install-v1+json',
+          Accept: 'application/json',
           'User-Agent': 'dependency-health',
+          ...(headers || {}),
         },
       },
       (res) => {
@@ -49,6 +50,27 @@ function httpsGetJson(url, timeoutMs) {
 
 const cache = new Map();
 
+function encodePackageName(packageName) {
+  return packageName
+    .split('/')
+    .map((s) => encodeURIComponent(s))
+    .join('/');
+}
+
+async function fetchLatestManifest(packageName, { registryUrl, timeoutMs } = {}) {
+  const encoded = encodePackageName(packageName);
+  const url = `${registryUrl}/${encoded}/latest`;
+  return httpsGetJson(url, { timeoutMs });
+}
+
+async function fetchSearchResult(packageName, { registryUrl, timeoutMs } = {}) {
+  // Use npm search API for publish date and links without downloading full packuments.
+  const url = `${registryUrl}/-/v1/search?text=${encodeURIComponent(
+    packageName,
+  )}&size=20`;
+  return httpsGetJson(url, { timeoutMs });
+}
+
 export async function fetchNpmMetadata(packageName, options = {}) {
   if (!packageName) return null;
 
@@ -62,13 +84,34 @@ export async function fetchNpmMetadata(packageName, options = {}) {
   if (cache.has(cacheKey)) return cache.get(cacheKey);
 
   const promise = (async () => {
-    const encoded = packageName
-      .split('/')
-      .map((s) => encodeURIComponent(s))
-      .join('/');
-    const url = `${registryUrl}/${encoded}`;
     try {
-      return await httpsGetJson(url, timeoutMs);
+      const [latest, search] = await Promise.all([
+        fetchLatestManifest(packageName, { registryUrl, timeoutMs }),
+        fetchSearchResult(packageName, { registryUrl, timeoutMs }).catch(
+          () => null,
+        ),
+      ]);
+
+      const match =
+        search && Array.isArray(search.objects)
+          ? search.objects.find(
+              (o) => o && o.package && o.package.name === packageName,
+            )
+          : null;
+
+      // Shape it like the old packument-derived data we were using.
+      const modified = match && match.package && match.package.date
+        ? match.package.date
+        : null;
+
+      return {
+        'dist-tags': {
+          latest: latest && latest.version ? String(latest.version) : null,
+        },
+        deprecated: latest && latest.deprecated ? latest.deprecated : null,
+        repository: latest && latest.repository ? latest.repository : null,
+        time: modified ? { modified } : null,
+      };
     } catch (err) {
       return null;
     }
@@ -81,4 +124,3 @@ export async function fetchNpmMetadata(packageName, options = {}) {
 export function _clearNpmMetadataCacheForTests() {
   cache.clear();
 }
-

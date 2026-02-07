@@ -52,20 +52,22 @@ function resolveEnabledAnalyzers(opt) {
     return only;
   }
 
-  // Default behavior (no config + no --only): stay offline/fast and keep
-  // backwards-compatible behavior by running only the depcheck-derived analyzers.
-  //
-  // Enabling additional analyzers should be an explicit action via config or --only.
-  const analyzers = opt.analyzers || null;
-  if (!analyzers) {
-    return ['usage', 'missing'];
-  }
+  // Default behavior: stay offline/fast and keep backwards-compatible behavior
+  // by running only the depcheck-derived analyzers.
+  const enabled = new Set(['usage', 'missing']);
 
-  const enabled = new Set(ALL_ANALYZERS);
+  const analyzers = opt.analyzers && typeof opt.analyzers === 'object'
+    ? opt.analyzers
+    : null;
+  if (!analyzers) return Array.from(enabled);
 
   Object.entries(analyzers).forEach(([key, value]) => {
-    if (value && value.enabled === false) {
-      const canonical = ANALYZER_ALIASES.get(key) || key;
+    const canonical = ANALYZER_ALIASES.get(key) || key;
+    if (!ALL_ANALYZERS.includes(canonical)) return;
+
+    if (value && value.enabled === true) {
+      enabled.add(canonical);
+    } else if (value && value.enabled === false) {
       enabled.delete(canonical);
     }
   });
