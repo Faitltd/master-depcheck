@@ -89,7 +89,10 @@ export async function analyzeProject(projectPath, options = {}) {
         )
       : [],
     security: includeSecurity
-      ? await analyzeSecurity(allDeclared, options)
+      ? await analyzeSecurity(allDeclared, {
+          projectPath,
+          ...((options.analyzers && options.analyzers.security) || {}),
+        })
       : [],
     _raw: depcheckResult,
   };
