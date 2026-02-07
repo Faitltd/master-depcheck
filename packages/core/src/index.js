@@ -83,7 +83,10 @@ export async function analyzeProject(projectPath, options = {}) {
         )
       : [],
     abandonment: includeAbandonment
-      ? await analyzeAbandonment(Object.keys(allDeclared), options)
+      ? await analyzeAbandonment(
+          Object.keys(allDeclared),
+          (options.analyzers && options.analyzers.abandonment) || {},
+        )
       : [],
     security: includeSecurity
       ? await analyzeSecurity(allDeclared, options)
