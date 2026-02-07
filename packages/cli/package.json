@@ -1,0 +1,25 @@
+{
+  "name": "@fait/dependency-health",
+  "version": "0.0.1",
+  "description": "Dependency Health CLI",
+  "main": "dist/index.js",
+  "bin": {
+    "depheal": "bin/depheal.js"
+  },
+  "engines": {
+    "node": ">=10"
+  },
+  "license": "MIT",
+  "scripts": {
+    "build": "babel src -d dist",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@fait/dependency-health-core": "0.0.1",
+    "camelcase": "^6.3.0",
+    "cosmiconfig": "^7.1.0",
+    "lodash": "^4.17.21",
+    "please-upgrade-node": "^3.2.0",
+    "yargs": "^16.2.0"
+  }
+}

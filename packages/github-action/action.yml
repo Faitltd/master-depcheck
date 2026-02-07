@@ -1,0 +1,13 @@
+name: Dependency Health
+description: Run Dependency Health scans in GitHub Actions
+inputs:
+  fail-on:
+    description: Comma separated list of categories that should fail the workflow
+    required: false
+  format:
+    description: Output format (console|json|markdown|html)
+    required: false
+    default: markdown
+runs:
+  using: node20
+  main: dist/index.js

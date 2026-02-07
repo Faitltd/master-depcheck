@@ -1,0 +1,20 @@
+@forward "@test-dep/aFile4";
+@use "@test-dep/aFile2";
+@use "mixin"; // should ignore...
+@use "sass:math"; // should show only sass...
+@import "@test-dep/aFile3";
+
+%ignore-extend {
+  margin: 0;
+}
+
+div {
+  @extend %ignore-extend;
+  font-size: 15px;
+}
+
+@keyframes ignore-keyframes {
+  70% {
+    margin-left: 90%;
+  }
+}

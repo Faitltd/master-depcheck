@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "plugins": [
+      {
+        "name": "typescript-eslint-language-service"
+      },
+      {
+        "name": "ts-graphql-plugin"
+      }
+    ],
+    "types": ["node", "jest"]
+  },
+  "extends": "@mybrand/tsconfig"
+}

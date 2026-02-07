@@ -1,0 +1,24 @@
+{
+  "plugins": [
+    "add-module-exports",
+    "@babel/transform-object-assign"
+  ],
+  "presets": [
+    [
+      "@babel/preset-env",
+      {
+        "targets": {
+          "node": "10"
+        },
+        "modules": "commonjs"
+      }
+    ]
+  ],
+  "env": {
+    "test": {
+      "plugins": [
+        "istanbul"
+      ]
+    }
+  }
+}
