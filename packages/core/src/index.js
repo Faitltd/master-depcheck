@@ -1,4 +1,6 @@
 import depcheck from './depcheck';
+import fs from 'fs';
+import path from 'path';
 import { analyzeUsage } from './analyzers/usage';
 import { analyzeMissing } from './analyzers/missing';
 import { analyzeUpgradeRisk } from './analyzers/upgrade-risk';
@@ -35,8 +37,17 @@ export async function analyzeProject(projectPath, options = {}) {
   const only = options.only ? new Set(options.only) : null;
   const includeUsage = !only || only.has('usage');
   const includeMissing = !only || only.has('missing');
+  const includeUpgradeRisk = !only || only.has('upgradeRisk');
+  const includeAbandonment = !only || only.has('abandonment');
+  const includeSecurity = !only || only.has('security');
 
-  if (!includeUsage && !includeMissing) {
+  if (
+    !includeUsage &&
+    !includeMissing &&
+    !includeUpgradeRisk &&
+    !includeAbandonment &&
+    !includeSecurity
+  ) {
     return {
       usage: null,
       missing: null,
@@ -47,17 +58,36 @@ export async function analyzeProject(projectPath, options = {}) {
     };
   }
 
-  const depcheckResult = await depcheck(projectPath, {
-    ...options,
-    skipMissing: !includeMissing,
-  });
+  const pkgPath = path.join(projectPath, 'package.json');
+  const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+  const allDeclared = {
+    ...(pkg.dependencies || {}),
+    ...(pkg.devDependencies || {}),
+  };
+
+  const depcheckResult =
+    includeUsage || includeMissing
+      ? await depcheck(projectPath, {
+          ...options,
+          skipMissing: !includeMissing,
+        })
+      : null;
 
   return {
-    usage: includeUsage ? mapUsage(depcheckResult) : null,
-    missing: includeMissing ? mapMissing(depcheckResult) : null,
-    upgradeRisk: [],
-    abandonment: [],
-    security: [],
+    usage: includeUsage && depcheckResult ? mapUsage(depcheckResult) : null,
+    missing: includeMissing && depcheckResult ? mapMissing(depcheckResult) : null,
+    upgradeRisk: includeUpgradeRisk
+      ? await analyzeUpgradeRisk(
+          allDeclared,
+          (options.analyzers && options.analyzers.upgradeRisk) || {},
+        )
+      : [],
+    abandonment: includeAbandonment
+      ? await analyzeAbandonment(Object.keys(allDeclared), options)
+      : [],
+    security: includeSecurity
+      ? await analyzeSecurity(allDeclared, options)
+      : [],
     _raw: depcheckResult,
   };
 }
